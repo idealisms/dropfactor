@@ -1,0 +1,503 @@
+<html>
+<head>
+<script>
+var kSize = 7;  // Board size.
+var kPieceSizePx = 42;
+var kBorderSizePx = 1;
+var kPiecesPerLevel = 6;
+var kColors = {
+  '1': 'rgb(0, 128, 0)',    // green
+  '2': 'rgb(240, 240, 0)',  // yellow
+  '3': 'rgb(255, 165, 0)',  // orange
+  '4': 'rgb(255, 0, 0)',    // red
+  '5': 'rgb(128, 0, 128)',  // purple
+  '6': 'rgb(28, 192, 255)', // light blue
+  '7': 'rgb(0, 0, 255)'     // blue
+};
+var kLightColors = {
+  '1': 'rgb(128, 192, 128)',  // green
+  '2': 'rgb(248, 248, 128)',  // yellow
+  '3': 'rgb(255, 210, 128)',  // orange
+  '4': 'rgb(255, 128, 128)',  // red
+  '5': 'rgb(192, 128, 192)',  // purple
+  '6': 'rgb(142, 224, 255)',  // light blue
+  '7': 'rgb(128, 128, 255)'   // blue
+};
+
+// These get initialized in initBoard.
+var board;
+var state;
+
+function Position(row, col) {
+  this.row = row;
+  this.col = col;
+}
+
+function PositionSet() {
+  this.positions_ = [];
+}
+
+PositionSet.prototype.add = function(pos) {
+  for (var i = 0; i < this.positions_.length; ++i) {
+    var cur = this.positions_[i];
+    if (cur.row == pos.row && cur.col == pos.col) {
+      return;
+    }
+  }
+  this.positions_[this.positions_.length] = pos;
+}
+
+PositionSet.prototype.get = function(idx) {
+  return this.positions_[idx];
+}
+
+PositionSet.prototype.length = function() {
+  return this.positions_.length;
+}
+
+function initBoard() {
+  state = new GameState();
+  board = new Array(kSize);
+  for (var i = 0; i < board.length; ++i) {
+    board[i] = new Array(kSize);
+  }
+  var kInitialPieces = 6;
+  for (var i = 0; i < kInitialPieces; ++i) {
+    var col = parseInt(Math.random() * kSize);
+    var value = parseInt(Math.random() * kSize + 1).toString();
+    dropPiece(col, value);
+  }
+
+  clearMatches();
+  drawBoard();
+  updateText();
+}
+
+// Drop |piece| into col.  If we've reached the top of the column (i.e., game
+// is over), return false.
+function dropPiece(col, piece) {
+  for (var row = kSize - 1; row >= 0; --row) {
+    if (!board[row][col]) {
+      board[row][col] = piece;
+      return true;
+    }
+  }
+  return false;
+}
+
+function drawBoard() {
+  var canvas = document.getElementById("canvas");
+  var ctx = canvas.getContext("2d");
+
+  // Paint background.
+  ctx.fillStyle = "rgb(64, 64, 64)";
+  ctx.fillRect(0, 0, 300, 350);
+
+  // Paint pieces.
+  var kTopPadding = 50;
+  for (var row = 0, y = kTopPadding; row < kSize;
+       ++row, y += kPieceSizePx + kBorderSizePx) {
+    for (var col = 0, x = 0; col < kSize;
+         ++col, x += kPieceSizePx + kBorderSizePx) {
+      ctx.fillStyle = "rgb(0, 0, 0)";
+      ctx.fillRect(x, y, kPieceSizePx, kPieceSizePx);
+
+      drawPiece(ctx, x, y, board[row][col]);
+    }
+  }
+
+  // Paint next piece.
+  var col = state.getNextPiecePos();
+  var x = col * kPieceSizePx + (col - 1) * kBorderSizePx;
+  drawPiece(ctx, x, kTopPadding - kPieceSizePx, state.getNextPiece());
+}
+
+function drawPiece(ctx, x, y, value) {
+  if (value >= '1' && value <= '7') {
+    // Draw colored circle.
+    /*
+    // This is code to draw the circle with a spherical look, but it
+    // doesn't seem to work on Android 1.6 or 2.1.
+    var radgrad = ctx.createRadialGradient(
+        kPieceSizePx / 4,
+        kPieceSizePx / 4,
+        kPieceSizePx / 8, // radius
+        kPieceSizePx / 2,
+        kPieceSizePx / 2,
+        kPieceSizePx / 2); // radius
+    radgrad = ctx.createRadialGradient(
+        x + kPieceSizePx / 3,
+        y + kPieceSizePx / 3,
+        kPieceSizePx / 8,
+        x + kPieceSizePx / 2,
+        y + kPieceSizePx / 2,
+        kPieceSizePx / 2);
+    radgrad.addColorStop(0, kLightColors[value]);  
+    radgrad.addColorStop(0.9, kColors[value]);  
+    radgrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = radgrad;
+    ctx.fillRect(x, y, kPieceSizePx, kPieceSizePx);
+    //*/
+    ctx.fillStyle = kColors[value];
+    ctx.beginPath();
+    ctx.arc(x + kPieceSizePx / 2, y + kPieceSizePx / 2,
+            kPieceSizePx / 2 - 1, 0, Math.PI * 2, true);
+    ctx.fill();
+
+    // Draw number.
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    var kFontHeight = kPieceSizePx - 10;
+    ctx.font = kFontHeight.toString() + 'px sans-serif';
+
+    ctx.strokeStyle = 'rgb(64, 64, 64)';
+    ctx.lineWidth = '4';
+    ctx.strokeText(value, x + kPieceSizePx / 2, y + kFontHeight);
+    ctx.fillText(value, x + kPieceSizePx / 2, y + kFontHeight);
+  } else if ('H' == value || 'h' == value) {
+    // Inner circle.
+    ctx.fillStyle = 'rgb(128, 128, 128)';
+    ctx.beginPath();
+    ctx.arc(x + kPieceSizePx / 2, y + kPieceSizePx / 2,
+            kPieceSizePx / 3 - 1,
+            0, Math.PI * 2, true);
+    ctx.fill();
+
+    // Outer circle.
+    ctx.strokeStyle = 'rgb(128, 128, 128)';
+    ctx.lineWidth = '4';
+    if ('H' == value) {
+      ctx.beginPath();
+      ctx.arc(x + kPieceSizePx / 2, y + kPieceSizePx / 2,
+              kPieceSizePx / 2 - 3,
+              0, Math.PI * 2, true);
+      ctx.stroke();
+    } else {
+      for (var r = 0; r < Math.PI * 2; r += Math.PI / 4) {
+        ctx.beginPath();
+        ctx.arc(x + kPieceSizePx / 2, y + kPieceSizePx / 2,
+                kPieceSizePx / 2 - 3,
+                r, r + (Math.PI / 8), false);
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+function handleKeydown(event) {
+  if (state.getGameOver()) {
+    return;
+  }
+  switch (event.keyCode) {
+    case 37:  // left arrow
+      state.moveNextPieceLeft();
+      drawBoard();
+      return;
+
+    case 39:  // right arrow
+      state.moveNextPieceRight();
+      drawBoard();
+      return;
+
+    case 40:  // down arrow
+    case 32:  // space bar
+      tryToDropPiece(state.getNextPiecePos());
+      return;
+  }
+
+  var keyValue = parseInt(String.fromCharCode(event.keyCode));
+  if (keyValue >= 1 && keyValue <= kSize) {
+    tryToDropPiece(keyValue - 1);
+  }
+}
+
+function handleMouseup(event) {
+  if (state.getGameOver()) {
+    return;
+  }
+  var x = event.clientX;
+  var node = event.target;
+  while (node) {
+    x -= node.offsetLeft;
+    node = node.offsetParent;
+  }
+  x += document.body.scrollLeft;
+  var col = parseInt(x / (kPieceSizePx + kBorderSizePx));
+  if (col >= 0 && col < kSize) {
+    tryToDropPiece(col);
+  }
+}
+
+function tryToDropPiece(col) {
+  if (col >= kSize)
+    return;
+  if (dropPiece(col, state.getNextPiece())) {
+    clearMatches();
+    if (state.useNextPiece()) {
+      nextLevel();
+    }
+    drawBoard();
+    updateText();
+
+    // Check to see if there are no more places to play.
+    for (var col = 0; col < kSize; ++col) {
+      if (!board[0][col]) {
+        return;
+      }
+    }
+    gameOver();
+  }
+}
+
+function clearMatches() {
+  var toBeCleared;
+  do {
+    toBeCleared = [];
+
+    // Compute column totals.
+    var columnTotals = [];
+    for (var col = 0; col < kSize; ++col) {
+      var total = 0;
+      for (var row = kSize - 1; row >= 0; --row) {
+        if (!board[row][col]) {
+          break;
+        }
+        ++total;
+      }
+      columnTotals[col] = total;
+    }
+
+    // Now clear matches (we compute row values on the fly).
+    for (var row = 0; row < kSize; ++row) {
+      for (var col = 0; col < kSize; ++col) {
+        var value = board[row][col];
+        if (value >= '1' && value <= '7') {
+          if (columnTotals[col] == parseInt(value) ||
+              countRowValue(row, col) == parseInt(value)) {
+            toBeCleared[toBeCleared.length] = new Position(row, col);
+          }
+        }
+      }
+    }
+
+    var toBeShown = new PositionSet();
+    // Find pieces that need to be unhidden.
+    for (var i = 0; i < toBeCleared.length; ++i) {
+      var row = toBeCleared[i].row;
+      var col = toBeCleared[i].col;
+      board[row][col] = null;
+
+      if (row + 1 < kSize && 'Hh'.indexOf(board[row + 1][col]) != -1) {
+        toBeShown.add(new Position(row + 1, col));
+      }
+      if (row - 1 >= 0 && 'Hh'.indexOf(board[row - 1][col]) != -1) {
+        toBeShown.add(new Position(row - 1, col));
+      }
+      if ('Hh'.indexOf(board[row][col + 1]) != -1) {
+        toBeShown.add(new Position(row, col + 1));
+      }
+      if ('Hh'.indexOf(board[row][col - 1]) != -1) {
+        toBeShown.add(new Position(row, col - 1));
+      }
+    }
+
+    // Unhide.
+    for (var i = 0; i < toBeShown.length(); ++i) {
+      var pos = toBeShown.get(i);
+      if (board[pos.row][pos.col] == 'H') {
+        board[pos.row][pos.col] = 'h';
+      } else {
+        board[pos.row][pos.col] = parseInt(Math.random() * kSize + 1).toString();
+      }
+    }    
+
+    // Shift down.
+    for (var col = 0; col < kSize; ++col) {
+      var rowPos = kSize - 1;
+      for (var row = kSize - 1; row >= 0; --row) {
+        if (board[row][col]) {
+          if (rowPos != row) {
+            board[rowPos][col] = board[row][col];
+            board[row][col] = null;
+          }
+          --rowPos;
+        }
+      }
+    }
+  } while (toBeCleared.length > 0);
+}
+
+function countRowValue(row, col) {
+  var total = 1;
+  for (var c = col + 1; board[row][c]; ++c) {
+    ++total;
+  }
+  for (var c = col - 1; board[row][c]; --c) {
+    ++total;
+  }
+  return total;
+}
+
+function nextLevel() {
+  // Add spaces to the bottom of each row and check to see if the game is
+  // over.
+  for (var col = 0; col < kSize; ++col) {
+    if (board[0][col]) {
+      gameOver();
+    }
+    for (var row = 1; row < kSize; ++row) {
+      board[row - 1][col] = board[row][col];
+    }
+    board[kSize - 1][col] = 'H';
+  }
+  clearMatches();
+  drawBoard();
+  updateText();
+}
+
+function updateText() {
+  document.getElementById('level').innerHTML = "Level: " + state.getLevel();
+  document.getElementById('next').innerHTML = "Next: "
+      + state.getUntilNextLevel();
+
+  if (state.getGameOver()) {
+    document.getElementById('game-over-bg').style.display = "block";
+    document.getElementById('game-over').style.display = "block";
+  } else {
+    document.getElementById('game-over-bg').style.display = "none";
+    document.getElementById('game-over').style.display = "none";
+  }
+}
+
+function gameOver() {
+  state.setGameOver(true);
+  //document.getElementById("gameOver").style.className =
+}
+
+// Keep track of level, next piece, and remaining pieces.
+function GameState() {
+  this.generateNextPiece();
+
+  // The piece position is which column to draw the piece over.  It is
+  // zero based.
+  this.nextPiecePosition_ = (kSize - 1) / 2;
+  this.level_ = 1;
+  this.untilNextLevel_ = kPiecesPerLevel;
+  this.gameOver_ = false;
+}
+
+GameState.prototype.setGameOver = function(gameOver) {
+  this.gameOver_ = gameOver;
+}
+
+GameState.prototype.getGameOver = function() {
+  return this.gameOver_;
+}
+
+GameState.prototype.generateNextPiece = function() {
+  this.nextPiece_ = parseInt(Math.random() * kSize + 1).toString();
+}
+
+GameState.prototype.getNextPiece = function() {
+  return this.nextPiece_;
+}
+
+// Returns true if we should increment the game level.
+GameState.prototype.useNextPiece = function() {
+  var next = this.getNextPiece();
+  this.generateNextPiece();
+  this.nextPiecePosition_ = (kSize - 1) / 2;
+  --this.untilNextLevel_;
+  if (0 == this.untilNextLevel_) {
+    ++this.level_;
+    this.untilNextLevel_ = kPiecesPerLevel;
+    return true;
+  }
+  return false;
+}
+
+GameState.prototype.getNextPiecePos = function() {
+  return this.nextPiecePosition_;
+}
+
+GameState.prototype.moveNextPieceLeft = function() {
+  if (this.nextPiecePosition_ > 0) {
+    --this.nextPiecePosition_;
+  }
+}
+
+GameState.prototype.moveNextPieceRight = function() {
+  if (this.nextPiecePosition_ < kSize - 1) {
+    ++this.nextPiecePosition_;
+  }
+}
+GameState.prototype.getLevel = function() {
+  return this.level_;
+}
+
+GameState.prototype.getUntilNextLevel = function() {
+  return this.untilNextLevel_;
+}
+
+window.onload = initBoard;
+window.onkeydown = handleKeydown;
+</script>
+<style>
+body {
+  margin: 0 auto;
+}
+#container {
+  width:300px;
+  margin: 0 auto;
+  position: relative;
+}
+#next {
+  float: right;
+}
+canvas {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  width: 300px;
+  height: 350px;
+}
+#game-over-bg {
+  z-index: 10;
+  width: 300px;
+  height: 350px;
+  position: absolute;
+  background-color: rgb(0, 0, 0);
+  opacity: .7;
+}
+#game-over {
+  z-index: 20;
+  width: 300px;
+  height: 350px;
+  position: absolute;
+}
+#game-over p {
+  margin: 100px auto 0;
+  font-size: 40px;
+  font-weight: bold;
+  color: white;
+  text-align: center;
+}
+#game-over input {
+  font-size: 24px;
+  margin-top: 40px;
+}
+</style>
+<title>Drop Factor (or Chain 7)</title>
+</head>
+<body>
+<div id="container">
+<div id="game-over-bg"></div>
+<div id="game-over">
+  <p>GAME OVER<br/>
+  <input type="button" value="new game" onclick="initBoard();"/></p>
+</div>
+<canvas id="canvas" width="300" height="350"
+        onmouseup="handleMouseup(event)"></canvas>
+<div id="next"></div>
+<div id="level"></div>
+</div>
+</body>
+</html>
