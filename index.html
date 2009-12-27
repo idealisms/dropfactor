@@ -71,6 +71,7 @@ function initBoard() {
   clearMatches();
   drawBoard();
   updateText();
+  document.getElementById("newgame").blur();
 }
 
 // Drop |piece| into col.  If we've reached the top of the column (i.e., game
@@ -249,81 +250,93 @@ function tryToDropPiece(col) {
   }
 }
 
+function findToBeCleared() {
+  var toBeCleared = [];
+  // Compute column totals.
+  var columnTotals = [];
+  for (var col = 0; col < kSize; ++col) {
+    var total = 0;
+    for (var row = kSize - 1; row >= 0; --row) {
+      if (!board[row][col]) {
+        break;
+      }
+      ++total;
+    }
+    columnTotals[col] = total;
+  }
+
+  // Now clear matches (we compute row values on the fly).
+  for (var row = 0; row < kSize; ++row) {
+    for (var col = 0; col < kSize; ++col) {
+      var value = board[row][col];
+      if (value >= '1' && value <= '7') {
+        if (columnTotals[col] == parseInt(value) ||
+            countRowValue(row, col) == parseInt(value)) {
+          toBeCleared[toBeCleared.length] = new Position(row, col);
+        }
+      }
+    }
+  }
+
+  return toBeCleared;
+}
+
+function unHidePieces(toBeCleared) {
+  var toBeShown = new PositionSet();
+  // Find pieces that need to be unhidden.
+  for (var i = 0; i < toBeCleared.length; ++i) {
+    var row = toBeCleared[i].row;
+    var col = toBeCleared[i].col;
+    board[row][col] = null;
+
+    if (row + 1 < kSize && 'Hh'.indexOf(board[row + 1][col]) != -1) {
+      toBeShown.add(new Position(row + 1, col));
+    }
+    if (row - 1 >= 0 && 'Hh'.indexOf(board[row - 1][col]) != -1) {
+      toBeShown.add(new Position(row - 1, col));
+    }
+    if ('Hh'.indexOf(board[row][col + 1]) != -1) {
+      toBeShown.add(new Position(row, col + 1));
+    }
+    if ('Hh'.indexOf(board[row][col - 1]) != -1) {
+      toBeShown.add(new Position(row, col - 1));
+    }
+  }
+
+  // Unhide.
+  for (var i = 0; i < toBeShown.length(); ++i) {
+    var pos = toBeShown.get(i);
+    if (board[pos.row][pos.col] == 'H') {
+      board[pos.row][pos.col] = 'h';
+    } else {
+      board[pos.row][pos.col] = parseInt(Math.random() * kSize + 1).toString();
+    }
+  }
+}
+
+function gravity() {
+  // Shift down.
+  for (var col = 0; col < kSize; ++col) {
+    var rowPos = kSize - 1;
+    for (var row = kSize - 1; row >= 0; --row) {
+      if (board[row][col]) {
+        if (rowPos != row) {
+          board[rowPos][col] = board[row][col];
+          board[row][col] = null;
+        }
+        --rowPos;
+      }
+    }
+  }
+}
+
 function clearMatches() {
   var toBeCleared;
   do {
-    toBeCleared = [];
+    toBeCleared = findToBeCleared();
+    unHidePieces(toBeCleared);
+    gravity();
 
-    // Compute column totals.
-    var columnTotals = [];
-    for (var col = 0; col < kSize; ++col) {
-      var total = 0;
-      for (var row = kSize - 1; row >= 0; --row) {
-        if (!board[row][col]) {
-          break;
-        }
-        ++total;
-      }
-      columnTotals[col] = total;
-    }
-
-    // Now clear matches (we compute row values on the fly).
-    for (var row = 0; row < kSize; ++row) {
-      for (var col = 0; col < kSize; ++col) {
-        var value = board[row][col];
-        if (value >= '1' && value <= '7') {
-          if (columnTotals[col] == parseInt(value) ||
-              countRowValue(row, col) == parseInt(value)) {
-            toBeCleared[toBeCleared.length] = new Position(row, col);
-          }
-        }
-      }
-    }
-
-    var toBeShown = new PositionSet();
-    // Find pieces that need to be unhidden.
-    for (var i = 0; i < toBeCleared.length; ++i) {
-      var row = toBeCleared[i].row;
-      var col = toBeCleared[i].col;
-      board[row][col] = null;
-
-      if (row + 1 < kSize && 'Hh'.indexOf(board[row + 1][col]) != -1) {
-        toBeShown.add(new Position(row + 1, col));
-      }
-      if (row - 1 >= 0 && 'Hh'.indexOf(board[row - 1][col]) != -1) {
-        toBeShown.add(new Position(row - 1, col));
-      }
-      if ('Hh'.indexOf(board[row][col + 1]) != -1) {
-        toBeShown.add(new Position(row, col + 1));
-      }
-      if ('Hh'.indexOf(board[row][col - 1]) != -1) {
-        toBeShown.add(new Position(row, col - 1));
-      }
-    }
-
-    // Unhide.
-    for (var i = 0; i < toBeShown.length(); ++i) {
-      var pos = toBeShown.get(i);
-      if (board[pos.row][pos.col] == 'H') {
-        board[pos.row][pos.col] = 'h';
-      } else {
-        board[pos.row][pos.col] = parseInt(Math.random() * kSize + 1).toString();
-      }
-    }    
-
-    // Shift down.
-    for (var col = 0; col < kSize; ++col) {
-      var rowPos = kSize - 1;
-      for (var row = kSize - 1; row >= 0; --row) {
-        if (board[row][col]) {
-          if (rowPos != row) {
-            board[rowPos][col] = board[row][col];
-            board[row][col] = null;
-          }
-          --rowPos;
-        }
-      }
-    }
   } while (toBeCleared.length > 0);
 }
 
@@ -491,8 +504,10 @@ canvas {
 <div id="container">
 <div id="game-over-bg"></div>
 <div id="game-over">
-  <p>GAME OVER<br/>
-  <input type="button" value="new game" onclick="initBoard();"/></p>
+  <p>
+    GAME OVER<br/>
+    <input id="newgame" type="button" value="new game" onclick="initBoard();"/>
+  </p>
 </div>
 <canvas id="canvas" width="300" height="350"
         onmouseup="handleMouseup(event)"></canvas>
