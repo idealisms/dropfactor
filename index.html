@@ -472,8 +472,14 @@ function nextLevel() {
 
 function updateText() {
   document.getElementById('level').innerHTML = "Level: " + state.getLevel();
-  document.getElementById('next').innerHTML = "Next: "
-      + state.getUntilNextLevel();
+  var next = "";
+  for (var i = 0; i < state.getUntilNextLevel(); ++i) {
+    next += "&#9679;";
+  }
+  for (var i = 0; i < kPiecesPerLevel - state.getUntilNextLevel(); ++i) {
+    next += "&#9675;";
+  }
+  document.getElementById('next').innerHTML = next;
 
   if (state.getGameOver()) {
     document.getElementById('game-over-bg').style.display = "block";
