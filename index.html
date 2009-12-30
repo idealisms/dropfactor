@@ -4,6 +4,7 @@
 var kSize = 7;  // Board size.
 var kPieceSizePx = 42;
 var kBorderSizePx = 1;
+var kTopPaddingPx = 50;
 var kPiecesPerLevel = 6;
 var kColors = {
   '1': 'rgb(0, 128, 0)',    // green
@@ -27,6 +28,15 @@ var kLightColors = {
 // These get initialized in initBoard.
 var board;
 var state;
+
+var hitch = function(obj, meth) {
+  return function() { return meth.apply(obj, arguments); };
+}
+
+function Point(x, y) {
+  this.x = x;
+  this.y = y;
+}
 
 function Position(row, col) {
   this.row = row;
@@ -55,21 +65,73 @@ PositionSet.prototype.length = function() {
   return this.positions_.length;
 }
 
+// durationMs is the total time for the animation. callback is
+// a javascript function to call with a number from 0 to 1 that
+// is the completion amount of the animation.
+var kDefaultAnimationTimeMs = 300;
+function Animation(callback, durationMs) {
+  this.callback_ = callback;
+  this.startTime_ = new Date().getTime();
+  this.timerId_ = window.setInterval(hitch(this, this.timerFire), 30);
+  this.animationTime_ = durationMs || kDefaultAnimationTimeMs;
+  if (state.getAnimating()) {
+    alert("nested animations");
+  }
+  state.setAnimating(true);
+}
+
+Animation.prototype.timerFire = function() {
+  var elapsedTimeMs = new Date().getTime() - this.startTime_;
+  if (elapsedTimeMs >= this.animationTime_) {
+    window.clearInterval(this.timerId_);
+    elapsedTimeMs = this.animationTime_;
+    state.setAnimating(false);
+  }
+  this.callback_(elapsedTimeMs / this.animationTime_);
+}
+
+function ClearAnimation(toBeCleared, advanceLevel) {
+  this.toBeCleared_ = toBeCleared;
+  this.animation_ = new Animation(hitch(this, this.callback_));
+  this.advanceLevel_ = advanceLevel;
+}
+
+ClearAnimation.prototype.callback_ = function(progress) {
+  if (progress >= 1) {
+    unHidePieces(this.toBeCleared_);
+    clearPieces(this.toBeCleared_);
+    gravity();
+    if (this.toBeCleared_.length > 0) {
+      clearMatches(this.advanceLevel_);
+    }
+    drawBoard();
+  } else {
+    var canvas = document.getElementById("canvas");
+    var ctx = canvas.getContext("2d");
+    for (var i = 0; i < this.toBeCleared_.length; ++i) {
+      var row = this.toBeCleared_[i].row;
+      var col = this.toBeCleared_[i].col;
+      var pt = rowCol2CanvasPos(row, col);
+      drawToBeClearedPiece(ctx, pt.x, pt.y, board[row][col], progress);
+    }
+  }
+}
+
 function initBoard() {
   state = new GameState();
   board = new Array(kSize);
   for (var i = 0; i < board.length; ++i) {
     board[i] = new Array(kSize);
   }
-  var kInitialPieces = 6;
+  var kInitialPieces = 16;
   for (var i = 0; i < kInitialPieces; ++i) {
     var col = parseInt(Math.random() * kSize);
     var value = parseInt(Math.random() * kSize + 1).toString();
     dropPiece(col, value);
   }
 
-  clearMatches();
   drawBoard();
+  clearMatches();
   updateText();
   document.getElementById("newgame").blur();
 }
@@ -86,6 +148,11 @@ function dropPiece(col, piece) {
   return false;
 }
 
+function rowCol2CanvasPos(row, col) {
+  return new Point(col * (kPieceSizePx + kBorderSizePx),
+                   row * (kPieceSizePx + kBorderSizePx) + kTopPaddingPx);
+}
+
 function drawBoard() {
   var canvas = document.getElementById("canvas");
   var ctx = canvas.getContext("2d");
@@ -95,8 +162,7 @@ function drawBoard() {
   ctx.fillRect(0, 0, 300, 350);
 
   // Paint pieces.
-  var kTopPadding = 50;
-  for (var row = 0, y = kTopPadding; row < kSize;
+  for (var row = 0, y = kTopPaddingPx; row < kSize;
        ++row, y += kPieceSizePx + kBorderSizePx) {
     for (var col = 0, x = 0; col < kSize;
          ++col, x += kPieceSizePx + kBorderSizePx) {
@@ -110,7 +176,7 @@ function drawBoard() {
   // Paint next piece.
   var col = state.getNextPiecePos();
   var x = col * kPieceSizePx + (col - 1) * kBorderSizePx;
-  drawPiece(ctx, x, kTopPadding - kPieceSizePx, state.getNextPiece());
+  drawPiece(ctx, x, kTopPaddingPx - kPieceSizePx, state.getNextPiece());
 }
 
 function drawPiece(ctx, x, y, value) {
@@ -185,8 +251,31 @@ function drawPiece(ctx, x, y, value) {
   }
 }
 
+function drawToBeClearedPiece(ctx, x, y, value, progress) {
+  ctx.fillStyle = "rgb(0, 0, 0)";
+  ctx.fillRect(x, y, kPieceSizePx, kPieceSizePx);
+
+  ctx.fillStyle = kColors[value];
+  ctx.beginPath();
+  var radius = kPieceSizePx / 2 - 1;
+  ctx.arc(x + kPieceSizePx / 2, y + kPieceSizePx / 2,
+          radius * (1 - progress), 0, Math.PI * 2, true);
+  ctx.fill();
+
+  // Draw number.
+  ctx.fillStyle = 'white';
+  ctx.textAlign = 'center';
+  var kFontHeight = kPieceSizePx - 10;
+  ctx.font = kFontHeight.toString() + 'px sans-serif';
+
+  ctx.strokeStyle = 'rgb(64, 64, 64)';
+  ctx.lineWidth = '4';
+  ctx.strokeText(value, x + kPieceSizePx / 2, y + kFontHeight);
+  ctx.fillText(value, x + kPieceSizePx / 2, y + kFontHeight);
+}
+
 function handleKeydown(event) {
-  if (state.getGameOver()) {
+  if (state.getGameOver() || state.getAnimating()) {
     return;
   }
   switch (event.keyCode) {
@@ -213,7 +302,7 @@ function handleKeydown(event) {
 }
 
 function handleMouseup(event) {
-  if (state.getGameOver()) {
+  if (state.getGameOver() || state.getAnimating()) {
     return;
   }
   var x = event.clientX;
@@ -233,11 +322,9 @@ function tryToDropPiece(col) {
   if (col >= kSize)
     return;
   if (dropPiece(col, state.getNextPiece())) {
-    clearMatches();
-    if (state.useNextPiece()) {
-      nextLevel();
-    }
+    var advanceLevel = state.useNextPiece();
     drawBoard();
+    clearMatches(advanceLevel);
     updateText();
 
     // Check to see if there are no more places to play.
@@ -287,7 +374,6 @@ function unHidePieces(toBeCleared) {
   for (var i = 0; i < toBeCleared.length; ++i) {
     var row = toBeCleared[i].row;
     var col = toBeCleared[i].col;
-    board[row][col] = null;
 
     if (row + 1 < kSize && 'Hh'.indexOf(board[row + 1][col]) != -1) {
       toBeShown.add(new Position(row + 1, col));
@@ -314,6 +400,14 @@ function unHidePieces(toBeCleared) {
   }
 }
 
+function clearPieces(toBeCleared) {
+  for (var i = 0; i < toBeCleared.length; ++i) {
+    var row = toBeCleared[i].row;
+    var col = toBeCleared[i].col;
+    board[row][col] = null;
+  }
+}
+
 function gravity() {
   // Shift down.
   for (var col = 0; col < kSize; ++col) {
@@ -330,14 +424,22 @@ function gravity() {
   }
 }
 
-function clearMatches() {
-  var toBeCleared;
-  do {
-    toBeCleared = findToBeCleared();
-    unHidePieces(toBeCleared);
-    gravity();
+function clearMatches(advanceLevel) {
+  var toBeCleared = findToBeCleared();
+  if (toBeCleared.length) {
+    new ClearAnimation(toBeCleared, advanceLevel);
+  } else {
+    drawBoard();
+    if (advanceLevel) {
+      nextLevel();
+    }
+  }
+  //do {
+    //toBeCleared = findToBeCleared();
+    //unHidePieces(toBeCleared);
+    //gravity();
 
-  } while (toBeCleared.length > 0);
+  //} while (toBeCleared.length > 0);
 }
 
 function countRowValue(row, col) {
@@ -363,8 +465,8 @@ function nextLevel() {
     }
     board[kSize - 1][col] = 'H';
   }
-  clearMatches();
   drawBoard();
+  clearMatches();
   updateText();
 }
 
@@ -397,6 +499,7 @@ function GameState() {
   this.level_ = 1;
   this.untilNextLevel_ = kPiecesPerLevel;
   this.gameOver_ = false;
+  this.animating_ = false;
 }
 
 GameState.prototype.setGameOver = function(gameOver) {
@@ -405,6 +508,14 @@ GameState.prototype.setGameOver = function(gameOver) {
 
 GameState.prototype.getGameOver = function() {
   return this.gameOver_;
+}
+
+GameState.prototype.setAnimating = function(animating) {
+  this.animating_ = animating;
+}
+
+GameState.prototype.getAnimating = function() {
+  return this.animating_;
 }
 
 GameState.prototype.generateNextPiece = function() {
