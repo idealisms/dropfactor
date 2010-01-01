@@ -499,9 +499,9 @@ function clearMatches(advanceLevel, chainDepth) {
 }
 
 function updateScore(piecesCleared, chainDepth) {
-  state.addToScore(parseInt(Math.pow(2.5, piecesCleared)) *
-                   parseInt(Math.pow(3.5, chainDepth + 1)) *
-                   state.getLevel());
+  state.addToScore(piecesCleared *
+                   parseInt(Math.pow(chainDepth + 1, 2.5)) *
+                   7);
 }
 
 function countRowValue(row, col) {
