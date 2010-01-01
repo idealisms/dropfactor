@@ -5,6 +5,8 @@ var kSize = 7;  // Board size.
 var kPieceSizePx = 42;
 var kBorderSizePx = 1;
 var kTopPaddingPx = 50;
+var kBoardWidthPx = kSize * (kPieceSizePx + kBorderSizePx) - kBorderSizePx;
+var kBoardHeightPx = kBoardWidthPx + kTopPaddingPx;
 var kPiecesPerLevel = 6;
 var kColors = {
   '1': 'rgb(0, 128, 0)',    // green
@@ -121,6 +123,35 @@ ClearAnimation.prototype.callback_ = function(progress) {
   }
 }
 
+function DropPieceAnimation(col) {
+  this.col_ = col;
+  this.targetRow_ = canDropPiece(col);
+  this.animation_ = new Animation(hitch(this, this.callback_),
+                                  40 * (this.targetRow_ + 1));
+}
+
+DropPieceAnimation.prototype.callback_ = function(progress) {
+  if (progress >= 1) {
+    dropFinished(this.col_);
+  } else {
+    // Clear next.
+    var canvas = document.getElementById("canvas");
+    var ctx = canvas.getContext("2d");
+    ctx.fillStyle = "rgb(64, 64, 64)";
+    ctx.fillRect(0, 0, kBoardWidthPx, kTopPaddingPx);
+
+    // Draw column.
+    drawColumn(this.col_);
+
+    // Draw dropping piece.
+    var x = this.col_ * (kPieceSizePx + kBorderSizePx);
+    var pixelDelta = (this.targetRow_ + 1) * (kPieceSizePx + kBorderSizePx);
+    var y = kTopPaddingPx - kPieceSizePx - kBorderSizePx;
+    y = y + parseInt(pixelDelta * progress);
+    drawPiece(ctx, x, y, state.getNextPiece());
+  }
+}
+
 function initBoard() {
   state = new GameState();
   board = new Array(kSize);
@@ -140,16 +171,26 @@ function initBoard() {
   document.getElementById("newgame").blur();
 }
 
-// Drop |piece| into col.  If we've reached the top of the column (i.e., game
-// is over), return false.
+// If a piece can be dropped into |col| returns the row that the piece would
+// be at.  If the column is full, returns -1.
+function canDropPiece(col) {
+  for (var row = kSize - 1; row >= 0; --row) {
+    if (!board[row][col]) {
+      return row;
+    }
+  }
+  return -1;
+}
+
+// Drop |piece| into col and updates the board state.
 function dropPiece(col, piece) {
   for (var row = kSize - 1; row >= 0; --row) {
     if (!board[row][col]) {
       board[row][col] = piece;
-      return true;
+      return;
     }
   }
-  return false;
+  throw Exception("invalid drop");
 }
 
 function rowCol2CanvasPos(row, col) {
@@ -161,26 +202,37 @@ function drawBoard() {
   var canvas = document.getElementById("canvas");
   var ctx = canvas.getContext("2d");
 
-  // Paint background.
+  // Paint board background.
   ctx.fillStyle = "rgb(64, 64, 64)";
-  ctx.fillRect(0, 0, 300, 350);
+  ctx.fillRect(0, 0, kBoardWidthPx, kBoardHeightPx);
 
   // Paint pieces.
-  for (var row = 0, y = kTopPaddingPx; row < kSize;
-       ++row, y += kPieceSizePx + kBorderSizePx) {
-    for (var col = 0, x = 0; col < kSize;
-         ++col, x += kPieceSizePx + kBorderSizePx) {
-      ctx.fillStyle = "rgb(0, 0, 0)";
-      ctx.fillRect(x, y, kPieceSizePx, kPieceSizePx);
-
-      drawPiece(ctx, x, y, board[row][col]);
-    }
+  for (var col = 0; col < kSize; ++col) {
+    drawColumn(col);
   }
 
   // Paint next piece.
   var col = state.getNextPiecePos();
   var x = col * kPieceSizePx + (col - 1) * kBorderSizePx;
   drawPiece(ctx, x, kTopPaddingPx - kPieceSizePx, state.getNextPiece());
+}
+
+function drawColumn(col) {
+  var canvas = document.getElementById("canvas");
+  var ctx = canvas.getContext("2d");
+
+  ctx.fillStyle = "rgb(64, 64, 64)";
+  ctx.fillRect(col * (kPieceSizePx + kBorderSizePx), kTopPaddingPx,
+               kPieceSizePx, kBoardHeightPx - kTopPaddingPx);
+
+  for (var row = 0; row < kSize; ++row) {
+    var point = rowCol2CanvasPos(row, col);
+
+    // Paint cell background.
+    ctx.fillStyle = "rgb(0, 0, 0)";
+    ctx.fillRect(point.x, point.y, kPieceSizePx, kPieceSizePx);
+    drawPiece(ctx, point.x, point.y, board[row][col]);
+  }
 }
 
 function drawPiece(ctx, x, y, value) {
@@ -325,20 +377,25 @@ function handleMouseup(event) {
 function tryToDropPiece(col) {
   if (col >= kSize)
     return;
-  if (dropPiece(col, state.getNextPiece())) {
-    var advanceLevel = state.useNextPiece();
-    drawBoard();
-    clearMatches(advanceLevel);
-    updateText();
-
-    // Check to see if there are no more places to play.
-    for (var col = 0; col < kSize; ++col) {
-      if (!board[0][col]) {
-        return;
-      }
-    }
-    gameOver();
+  if (canDropPiece(col) != -1) {
+    new DropPieceAnimation(col);
   }
+}
+
+function dropFinished(col) {
+  dropPiece(col, state.getNextPiece());
+  var advanceLevel = state.useNextPiece();
+  drawBoard();
+  clearMatches(advanceLevel);
+  updateText();
+
+  // Check to see if there are no more places to play.
+  for (var col = 0; col < kSize; ++col) {
+    if (!board[0][col]) {
+      return;
+    }
+  }
+  gameOver();
 }
 
 function findToBeCleared() {
@@ -594,7 +651,7 @@ body {
   margin: 0 auto;
 }
 #container {
-  width:300px;
+  width: 300px;
   margin: 0 auto;
   position: relative;
 }
