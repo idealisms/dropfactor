@@ -255,8 +255,8 @@ function drawPiece(ctx, x, y, value) {
         x + kPieceSizePx / 2,
         y + kPieceSizePx / 2,
         kPieceSizePx / 2);
-    radgrad.addColorStop(0, kLightColors[value]);  
-    radgrad.addColorStop(0.9, kColors[value]);  
+    radgrad.addColorStop(0, kLightColors[value]);
+    radgrad.addColorStop(0.9, kColors[value]);
     radgrad.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = radgrad;
     ctx.fillRect(x, y, kPieceSizePx, kPieceSizePx);
@@ -499,7 +499,7 @@ function clearMatches(advanceLevel, chainDepth) {
 }
 
 function updateScore(piecesCleared, chainDepth) {
-  state.addToScore(parseInt(Math.pow(2.5, piecesCleared)) * 
+  state.addToScore(parseInt(Math.pow(2.5, piecesCleared)) *
                    parseInt(Math.pow(3.5, chainDepth + 1)) *
                    state.getLevel());
 }
