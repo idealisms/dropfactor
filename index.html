@@ -90,10 +90,11 @@ Animation.prototype.timerFire = function() {
   this.callback_(elapsedTimeMs / this.animationTime_);
 }
 
-function ClearAnimation(toBeCleared, advanceLevel) {
+function ClearAnimation(toBeCleared, advanceLevel, chainDepth) {
   this.toBeCleared_ = toBeCleared;
-  this.animation_ = new Animation(hitch(this, this.callback_));
+  this.animation_ = new Animation(hitch(this, this.callback_), 400);
   this.advanceLevel_ = advanceLevel;
+  this.chainDepth_ = chainDepth;
 }
 
 ClearAnimation.prototype.callback_ = function(progress) {
@@ -101,9 +102,12 @@ ClearAnimation.prototype.callback_ = function(progress) {
     unHidePieces(this.toBeCleared_);
     clearPieces(this.toBeCleared_);
     gravity();
-    if (this.toBeCleared_.length > 0) {
-      clearMatches(this.advanceLevel_);
+    if (this.chainDepth_ != -1) {
+      updateScore(this.toBeCleared_.length, this.chainDepth_);
+      updateText();
     }
+    clearMatches(this.advanceLevel_,
+                 this.chainDepth_ == -1 ? -1 : this.chainDepth_ + 1);
     drawBoard();
   } else {
     var canvas = document.getElementById("canvas");
@@ -131,7 +135,7 @@ function initBoard() {
   }
 
   drawBoard();
-  clearMatches();
+  clearMatches(false, -1);  // Don't give points for these.
   updateText();
   document.getElementById("newgame").blur();
 }
@@ -424,22 +428,23 @@ function gravity() {
   }
 }
 
-function clearMatches(advanceLevel) {
+function clearMatches(advanceLevel, chainDepth) {
   var toBeCleared = findToBeCleared();
   if (toBeCleared.length) {
-    new ClearAnimation(toBeCleared, advanceLevel);
+    chainDepth = chainDepth || 0;
+    new ClearAnimation(toBeCleared, advanceLevel, chainDepth);
   } else {
     drawBoard();
     if (advanceLevel) {
       nextLevel();
     }
   }
-  //do {
-    //toBeCleared = findToBeCleared();
-    //unHidePieces(toBeCleared);
-    //gravity();
+}
 
-  //} while (toBeCleared.length > 0);
+function updateScore(piecesCleared, chainDepth) {
+  state.addToScore(parseInt(Math.pow(2.5, piecesCleared)) * 
+                   parseInt(Math.pow(3.5, chainDepth + 1)) *
+                   state.getLevel());
 }
 
 function countRowValue(row, col) {
@@ -473,7 +478,8 @@ function nextLevel() {
 }
 
 function updateText() {
-  document.getElementById('level').innerHTML = "Level: " + state.getLevel();
+  document.getElementById('level').innerHTML = "Score: " + state.getScore() +
+      "<br>Level: " + state.getLevel();
   var next = "";
   for (var i = 0; i < state.getUntilNextLevel(); ++i) {
     next += "&#9679;";
@@ -508,6 +514,7 @@ function GameState() {
   this.untilNextLevel_ = kPiecesPerLevel;
   this.gameOver_ = false;
   this.animating_ = false;
+  this.score_ = 0;
 }
 
 GameState.prototype.setGameOver = function(gameOver) {
@@ -524,6 +531,14 @@ GameState.prototype.setAnimating = function(animating) {
 
 GameState.prototype.getAnimating = function() {
   return this.animating_;
+}
+
+GameState.prototype.addToScore = function(pts) {
+  this.score_ += pts;
+}
+
+GameState.prototype.getScore = function() {
+  return this.score_;
 }
 
 GameState.prototype.generateNextPiece = function() {
