@@ -92,6 +92,7 @@ Animation.prototype.timerFire = function() {
   this.callback_(elapsedTimeMs / this.animationTime_);
 }
 
+// If |chainDepth| is -1, don't compute the score for cleared circles.
 function ClearAnimation(toBeCleared, advanceLevel, chainDepth) {
   this.toBeCleared_ = toBeCleared;
   this.animation_ = new Animation(hitch(this, this.callback_), 400);
@@ -106,6 +107,10 @@ ClearAnimation.prototype.callback_ = function(progress) {
     gravity();
     if (this.chainDepth_ != -1) {
       updateScore(this.toBeCleared_.length, this.chainDepth_);
+      if (boardIsEmpty()) {
+        // Does this bonus happen in hardcore mode?
+        //state.addToScore(70000);  // bonus for clearing all of the board
+      }
       updateText();
     }
     clearMatches(this.advanceLevel_,
@@ -485,6 +490,14 @@ function gravity() {
   }
 }
 
+function boardIsEmpty() {
+  for (var col = 0; col < kSize; ++col) {
+    if (board[kSize - 1][col])
+      return false;
+  }
+  return true;
+}
+
 function clearMatches(advanceLevel, chainDepth) {
   var toBeCleared = findToBeCleared();
   if (toBeCleared.length) {
@@ -614,6 +627,7 @@ GameState.prototype.useNextPiece = function() {
   --this.untilNextLevel_;
   if (0 == this.untilNextLevel_) {
     ++this.level_;
+    this.addToScore(17000);  // award for advancing a level
     this.untilNextLevel_ = kPiecesPerLevel;
     return true;
   }
