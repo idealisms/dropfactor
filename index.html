@@ -95,7 +95,7 @@ Animation.prototype.timerFire = function() {
 // If |chainDepth| is -1, don't compute the score for cleared circles.
 function ClearAnimation(toBeCleared, advanceLevel, chainDepth) {
   this.toBeCleared_ = toBeCleared;
-  this.animation_ = new Animation(hitch(this, this.callback_), 400);
+  this.animation_ = new Animation(hitch(this, this.callback_), 800);
   this.advanceLevel_ = advanceLevel;
   this.chainDepth_ = chainDepth;
 }
@@ -107,15 +107,15 @@ ClearAnimation.prototype.callback_ = function(progress) {
     gravity();
     if (this.chainDepth_ != -1) {
       updateScore(this.toBeCleared_.length, this.chainDepth_);
-      if (boardIsEmpty()) {
-        // Does this bonus happen in hardcore mode?
-        //state.addToScore(70000);  // bonus for clearing all of the board
-      }
+      //if (boardIsEmpty()) {
+      //  Does this bonus happen in hardcore mode?
+      //  state.addToScore(70000);  // bonus for clearing all of the board
+      //}
       updateText();
     }
+    drawBoard();
     clearMatches(this.advanceLevel_,
                  this.chainDepth_ == -1 ? -1 : this.chainDepth_ + 1);
-    drawBoard();
   } else {
     var canvas = document.getElementById("canvas");
     var ctx = canvas.getContext("2d");
@@ -132,7 +132,7 @@ function DropPieceAnimation(col) {
   this.col_ = col;
   this.targetRow_ = canDropPiece(col);
   this.animation_ = new Animation(hitch(this, this.callback_),
-                                  40 * (this.targetRow_ + 1));
+                                  35 * (this.targetRow_ + 1));
 }
 
 DropPieceAnimation.prototype.callback_ = function(progress) {
@@ -313,7 +313,8 @@ function drawPiece(ctx, x, y, value) {
 }
 
 function drawToBeClearedPiece(ctx, x, y, value, progress) {
-  ctx.fillStyle = "rgb(0, 0, 0)";
+  var bgColor = parseInt(255 * (1 - progress));
+  ctx.fillStyle = "rgb(" + bgColor + "," + bgColor + "," + bgColor + ")";
   ctx.fillRect(x, y, kPieceSizePx, kPieceSizePx);
 
   ctx.fillStyle = kColors[value];
@@ -418,17 +419,44 @@ function findToBeCleared() {
     columnTotals[col] = total;
   }
 
+  // Keep track of rows and cols that result in a piece being cleared.
+  var highlightPieces = new PositionSet();
   // Now clear matches (we compute row values on the fly).
   for (var row = 0; row < kSize; ++row) {
     for (var col = 0; col < kSize; ++col) {
       var value = board[row][col];
       if (value >= '1' && value <= '7') {
-        if (columnTotals[col] == parseInt(value) ||
-            countRowValue(row, col) == parseInt(value)) {
+        if (columnTotals[col] == parseInt(value)) {
           toBeCleared[toBeCleared.length] = new Position(row, col);
+          for (var r = kSize - 1; r > kSize - 1 - columnTotals[col]; --r) {
+            highlightPieces.add(new Position(r, col));
+          }
+        } else if (countRowValue(row, col) == parseInt(value)) {
+          toBeCleared[toBeCleared.length] = new Position(row, col);
+          for (var c = col; board[row][c]; ++c) {
+            highlightPieces.add(new Position(row, c));
+          }
+          for (var c = col - 1; board[row][c]; --c) {
+            highlightPieces.add(new Position(row, c));
+          }
         }
       }
     }
+  }
+
+  // Highlight the backgrounds of the rows and cols that cause a piece to be
+  // cleared.
+  var canvas = document.getElementById("canvas");
+  var ctx = canvas.getContext("2d");
+  for (var i = 0; i < highlightPieces.length(); ++i) {
+    var row = highlightPieces.get(i).row;
+    var col = highlightPieces.get(i).col;
+    var point = rowCol2CanvasPos(row, col);
+
+    // Paint cell background.
+    ctx.fillStyle = "rgb(224, 224, 224)";
+    ctx.fillRect(point.x, point.y, kPieceSizePx, kPieceSizePx);
+    drawPiece(ctx, point.x, point.y, board[row][col]);
   }
 
   return toBeCleared;
