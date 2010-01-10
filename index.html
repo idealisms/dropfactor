@@ -636,7 +636,14 @@ GameState.prototype.addToScore = function(pts) {
 }
 
 GameState.prototype.getScore = function() {
-  return this.score_;
+  // Format it for display.  Regex from:
+  // http://www.mredkj.com/javascript/nfbasic.html
+  var score = this.score_.toString();
+  var rgx = /(\d+)(\d{3})/;
+  while (rgx.test(score)) {
+    score = score.replace(rgx, '$1' + ',' + '$2');
+  }
+  return score;
 }
 
 GameState.prototype.generateNextPiece = function() {
