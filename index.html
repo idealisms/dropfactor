@@ -187,6 +187,17 @@ function canDropPiece(col) {
   return -1;
 }
 
+// Format a score for display by adding commas.  Regex from:
+// http://www.mredkj.com/javascript/nfbasic.html
+function formatScore(score) {
+  score = score.toString();
+  var rgx = /(\d+)(\d{3})/;
+  while (rgx.test(score)) {
+    score = score.replace(rgx, '$1' + ',' + '$2');
+  }
+  return score;
+}
+
 // Drop |piece| into col and updates the board state.
 function dropPiece(col, piece) {
   for (var row = kSize - 1; row >= 0; --row) {
@@ -590,6 +601,18 @@ function updateText() {
   if (state.getGameOver()) {
     document.getElementById('game-over-bg').style.display = "block";
     document.getElementById('game-over').style.display = "block";
+    var scoreArray = state.getHiScores();
+    var scores = "";
+    var seenScore = false;
+    for (var i = 0; i < scoreArray.length; ++i) {
+      var score = formatScore(scoreArray[i]);
+      if (!seenScore && score == state.getScore()) {
+        score = "<span class='current'>" + score + "</span>";
+        seenScore = true;
+      }
+      scores += (i + 1).toString() + ". " + score + "<br>";
+    }
+    document.getElementById('high-scores').innerHTML = scores;
   } else {
     document.getElementById('game-over-bg').style.display = "none";
     document.getElementById('game-over').style.display = "none";
@@ -636,11 +659,15 @@ GameState.prototype.loadHighScores_ = function() {
   }
 }
 
+GameState.prototype.getHiScores = function() {
+  return this.hiScores_;
+}
+
 GameState.prototype.addHiScore = function() {
   this.hiScores_.push(this.score_);
   this.hiScores_.sort(hiScoreCmp);
-  // Keep the top 10 scores.
-  while (this.hiScores_.length > 10) {
+  // Keep the top 5 scores.
+  while (this.hiScores_.length > 5) {
     this.hiScores_.pop();
   }
   var scoreStr = "";
@@ -674,14 +701,8 @@ GameState.prototype.addToScore = function(pts) {
 }
 
 GameState.prototype.getScore = function() {
-  // Format it for display.  Regex from:
-  // http://www.mredkj.com/javascript/nfbasic.html
-  var score = this.score_.toString();
-  var rgx = /(\d+)(\d{3})/;
-  while (rgx.test(score)) {
-    score = score.replace(rgx, '$1' + ',' + '$2');
-  }
-  return score;
+  return formatScore(this.score_.toString());
+
 }
 
 GameState.prototype.generateNextPiece = function() {
@@ -763,17 +784,33 @@ canvas {
   width: 300px;
   height: 350px;
   position: absolute;
+  text-align: center;
 }
-#game-over p {
-  margin: 100px auto 0;
+#game-over h1 {
+  margin: 20px auto 0;
   font-size: 40px;
   font-weight: bold;
   color: white;
-  text-align: center;
 }
 #game-over input {
   font-size: 24px;
-  margin-top: 40px;
+  margin-top: 30px;
+}
+
+#game-over h2 {
+  margin: 30px auto 10px;
+  font-face: sans-serif;
+  font-size: 24px;
+  font-weight: bold;
+  color: #ccc;
+}
+#high-scores {
+  font-face: sans-serif;
+  font-size: 20px;
+  color: #ccc;
+}
+#high-scores .current {
+  color: #ff0;
 }
 </style>
 <title>Drop Factor (or Chain 7)</title>
@@ -782,10 +819,12 @@ canvas {
 <div id="container">
 <div id="game-over-bg"></div>
 <div id="game-over">
-  <p>
+  <h1>
     GAME OVER<br/>
     <input id="newgame" type="button" value="new game" onclick="initBoard();"/>
-  </p>
+  </h1>
+  <h2>High Scores</h2>
+  <div id="high-scores"></div>
 </div>
 <canvas id="canvas" width="300" height="350"
         onmouseup="handleMouseup(event)"></canvas>
