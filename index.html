@@ -598,6 +598,7 @@ function updateText() {
 
 function gameOver() {
   state.setGameOver(true);
+  state.addHiScore();
   updateText();
 }
 
@@ -613,6 +614,43 @@ function GameState() {
   this.gameOver_ = false;
   this.animating_ = false;
   this.score_ = 0;
+  this.hiScores_ = [];
+  this.loadHighScores_();
+}
+
+function hiScoreCmp(lhs, rhs) {
+  if (parseInt(lhs) == parseInt(rhs)) {
+    return 0;
+  }
+  return parseInt(lhs) < parseInt(rhs) ? 1 : -1;
+}
+
+GameState.prototype.loadHighScores_ = function() {
+  var scoreStr = window.localStorage.getItem('hiscores');
+  if (scoreStr) {
+    this.hiScores_ = scoreStr.split(',');
+    for (var i = 0; i < this.hiScores_.length; ++i) {
+      this.hiScores_[i] = parseInt(this.hiScores_[i]);
+    }
+    this.hiScores_.sort(hiScoreCmp);
+  }
+}
+
+GameState.prototype.addHiScore = function() {
+  this.hiScores_.push(this.score_);
+  this.hiScores_.sort(hiScoreCmp);
+  // Keep the top 10 scores.
+  while (this.hiScores_.length > 10) {
+    this.hiScores_.pop();
+  }
+  var scoreStr = "";
+  for (var i = 0; i < this.hiScores_.length; ++i) {
+    if (i > 0) {
+      scoreStr += ",";
+    }
+    scoreStr += this.hiScores_[i];
+  }
+  window.localStorage.setItem('hiscores', scoreStr);
 }
 
 GameState.prototype.setGameOver = function(gameOver) {
