@@ -1,6 +1,15 @@
 <html>
 <head>
 <script>
+/*
+ * Note on normal mode: Info about normal mode is taken mostly from this
+ * blog post:
+ *
+ * http://www.nickseeber.com/2009/07/analysis-of-the-iphone-game-drop7-with-tips-on-advanced-strategy.html
+ *
+ * Currently, a hidden square is chosen as next 25% of the time per that
+ * page.
+ */
 // Variables to determine game mode
 var kHardcoreMode = 0;
 var kNormalMode = 1;
@@ -720,6 +729,12 @@ GameState.prototype.getScore = function() {
 }
 
 GameState.prototype.generateNextPiece = function() {
+  if (this.mode_ == kNormalMode) {
+    if (parseInt(Math.random() * 4) == 0) {
+      this.nextPiece_ = 'H';
+      return;
+    }
+  }
   this.nextPiece_ = parseInt(Math.random() * kSize + 1).toString();
 }
 
