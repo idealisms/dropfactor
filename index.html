@@ -180,10 +180,22 @@ function initBoard() {
   for (var i = 0; i < board.length; ++i) {
     board[i] = new Array(kSize);
   }
-  var kInitialPieces = 16;
+
+  var kInitialPieces;
+  if (mode == kHardcoreMode) {
+    kInitialPieces = 16;
+  } else {
+    kInitialPieces = 10;
+  }
   for (var i = 0; i < kInitialPieces; ++i) {
     var col = parseInt(Math.random() * kSize);
-    var value = parseInt(Math.random() * kSize + 1).toString();
+    var value;
+    if (mode == kHardcoreMode) {
+      value = parseInt(Math.random() * kSize + 1).toString();
+    } else {
+      value = parseInt(Math.random() * (kSize + 1) + 1).toString();
+      if (value == kSize + 1) value = 'H';
+    }
     dropPiece(col, value);
   }
 
