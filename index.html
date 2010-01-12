@@ -1,13 +1,16 @@
 <html>
 <head>
 <script>
+// Variables to determine game mode
+var kHardcoreMode = 0;
+var kNormalMode = 1;
+
 var kSize = 7;  // Board size.
 var kPieceSizePx = 42;
 var kBorderSizePx = 1;
 var kTopPaddingPx = 50;
 var kBoardWidthPx = kSize * (kPieceSizePx + kBorderSizePx) - kBorderSizePx;
 var kBoardHeightPx = kBoardWidthPx + kTopPaddingPx;
-var kPiecesPerLevel = 5;
 var kColors = {
   '1': 'rgb(0, 128, 0)',    // green
   '2': 'rgb(240, 240, 0)',  // yellow
@@ -158,7 +161,12 @@ DropPieceAnimation.prototype.callback_ = function(progress) {
 }
 
 function initBoard() {
-  state = new GameState();
+  var mode = kHardcoreMode;
+  if (location.search.indexOf('normal') > 0) {
+    mode = kNormalMode;
+  }
+
+  state = new GameState(mode);
   board = new Array(kSize);
   for (var i = 0; i < board.length; ++i) {
     board[i] = new Array(kSize);
@@ -593,7 +601,7 @@ function updateText() {
   for (var i = 0; i < state.getUntilNextLevel(); ++i) {
     next += "&#9679;";
   }
-  for (var i = 0; i < kPiecesPerLevel - state.getUntilNextLevel(); ++i) {
+  for (var i = 0; i < state.getPiecesThisLevel() - state.getUntilNextLevel(); ++i) {
     next += "&#9675;";
   }
   document.getElementById('next').innerHTML = next;
@@ -626,14 +634,16 @@ function gameOver() {
 }
 
 // Keep track of level, next piece, and remaining pieces.
-function GameState() {
+function GameState(mode) {
+  this.mode_ = mode;
+
   this.generateNextPiece();
 
   // The piece position is which column to draw the piece over.  It is
   // zero based.
   this.nextPiecePosition_ = (kSize - 1) / 2;
   this.level_ = 1;
-  this.untilNextLevel_ = kPiecesPerLevel;
+  this.untilNextLevel_ = this.getPiecesThisLevel();
   this.gameOver_ = false;
   this.animating_ = false;
   this.score_ = 0;
@@ -722,7 +732,7 @@ GameState.prototype.useNextPiece = function() {
   if (0 == this.untilNextLevel_) {
     ++this.level_;
     this.addToScore(17000);  // award for advancing a level
-    this.untilNextLevel_ = kPiecesPerLevel;
+    this.untilNextLevel_ = this.getPiecesThisLevel();
     return true;
   }
   return false;
@@ -751,6 +761,13 @@ GameState.prototype.getUntilNextLevel = function() {
   return this.untilNextLevel_;
 }
 
+GameState.prototype.getPiecesThisLevel = function() {
+  if (this.mode_ == kHardcoreMode) {
+    return 5;
+  } else {
+    return Math.max(5, 30 - this.level_);
+  }
+}
 window.onload = initBoard;
 window.onkeydown = handleKeydown;
 </script>
