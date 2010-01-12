@@ -110,10 +110,10 @@ ClearAnimation.prototype.callback_ = function(progress) {
     gravity();
     if (this.chainDepth_ != -1) {
       updateScore(this.toBeCleared_.length, this.chainDepth_);
-      //if (boardIsEmpty()) {
+      if (boardIsEmpty() && state.getMode() == kNormalMode) {
       //  Does this bonus happen in hardcore mode?
-      //  state.addToScore(70000);  // bonus for clearing all of the board
-      //}
+        state.addToScore(70000);  // bonus for clearing all of the board
+      }
       updateText();
     }
     drawBoard();
@@ -688,6 +688,10 @@ GameState.prototype.addHiScore = function() {
     scoreStr += this.hiScores_[i];
   }
   window.localStorage.setItem('hiscores', scoreStr);
+}
+
+GameState.prototype.getMode = function() {
+  return this.mode_;
 }
 
 GameState.prototype.setGameOver = function(gameOver) {
