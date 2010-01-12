@@ -661,6 +661,8 @@ function gameOver() {
 function GameState(mode) {
   this.mode_ = mode;
 
+  this.highScoreName_ = mode == kHardcoreMode ? 'hiscores' : 'nhiscores';
+
   this.generateNextPiece();
 
   // The piece position is which column to draw the piece over.  It is
@@ -683,7 +685,7 @@ function hiScoreCmp(lhs, rhs) {
 }
 
 GameState.prototype.loadHighScores_ = function() {
-  var scoreStr = window.localStorage.getItem('hiscores');
+  var scoreStr = window.localStorage.getItem(this.highScoreName_);
   if (scoreStr) {
     this.hiScores_ = scoreStr.split(',');
     for (var i = 0; i < this.hiScores_.length; ++i) {
@@ -711,7 +713,7 @@ GameState.prototype.addHiScore = function() {
     }
     scoreStr += this.hiScores_[i];
   }
-  window.localStorage.setItem('hiscores', scoreStr);
+  window.localStorage.setItem(this.highScoreName_, scoreStr);
 }
 
 GameState.prototype.getMode = function() {
