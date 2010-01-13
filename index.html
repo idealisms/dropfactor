@@ -194,7 +194,10 @@ function initBoard() {
       value = parseInt(Math.random() * kSize + 1).toString();
     } else {
       value = parseInt(Math.random() * (kSize + 1) + 1).toString();
-      if (value == kSize + 1) value = 'H';
+      // In normal mode, we can start with some hidden pieces.
+      if (value == kSize + 1) {
+        value = 'H';
+      }
     }
     dropPiece(col, value);
   }
