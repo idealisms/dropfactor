@@ -693,6 +693,9 @@ function hiScoreCmp(lhs, rhs) {
 }
 
 GameState.prototype.loadHighScores_ = function() {
+  if (!window.localStorage) {
+    return;
+  }
   var scoreStr = window.localStorage.getItem(this.highScoreName_);
   if (scoreStr) {
     this.hiScores_ = scoreStr.split(',');
@@ -708,6 +711,9 @@ GameState.prototype.getHiScores = function() {
 }
 
 GameState.prototype.addHiScore = function() {
+  if (!window.localStorage) {
+    return;
+  }
   this.hiScores_.push(this.score_);
   this.hiScores_.sort(hiScoreCmp);
   // Keep the top 5 scores.
