@@ -171,7 +171,7 @@ DropPieceAnimation.prototype.callback_ = function(progress) {
 
 function initBoard() {
   var mode = kHardcoreMode;
-  if (location.search.indexOf('normal') > 0) {
+  if (location.hash.indexOf('normal') > 0) {
     mode = kNormalMode;
   }
 
@@ -420,6 +420,14 @@ function handleMouseup(event) {
   var col = parseInt(x / (kPieceSizePx + kBorderSizePx));
   if (col >= 0 && col < kSize) {
     tryToDropPiece(col);
+  }
+}
+
+function handleHashChange() {
+  // Restart of the user changed modes.
+  var mode = location.hash.indexOf('normal') > 0 ? kNormalMode : kHardcoreMode;
+  if (mode != state.getMode()) {
+    initBoard();
   }
 }
 
@@ -806,6 +814,7 @@ GameState.prototype.getPiecesThisLevel = function() {
 }
 window.onload = initBoard;
 window.onkeydown = handleKeydown;
+window.onhashchange = handleHashChange;
 </script>
 <style>
 body {
