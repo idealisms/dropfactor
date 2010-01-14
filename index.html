@@ -660,6 +660,9 @@ function updateText() {
 }
 
 function gameOver() {
+  if (state.getGameOver()) {
+    return;
+  }
   state.setGameOver(true);
   state.addHiScore();
   updateText();
