@@ -439,6 +439,15 @@ function tryToDropPiece(col) {
   }
 }
 
+function boardIsFull() {
+  for (var col = 0; col < kSize; ++col) {
+    if (!board[0][col]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function dropFinished(col) {
   dropPiece(col, state.getNextPiece());
   var advanceLevel = state.useNextPiece();
@@ -447,12 +456,9 @@ function dropFinished(col) {
   updateText();
 
   // Check to see if there are no more places to play.
-  for (var col = 0; col < kSize; ++col) {
-    if (!board[0][col]) {
-      return;
-    }
+  if (boardIsFull()) {
+    gameOver();
   }
-  gameOver();
 }
 
 function findToBeCleared() {
@@ -586,6 +592,8 @@ function clearMatches(advanceLevel, chainDepth) {
     drawBoard();
     if (advanceLevel) {
       nextLevel();
+    } else if (boardIsFull()) {
+      gameOver();
     }
   }
 }
