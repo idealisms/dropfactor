@@ -69,9 +69,11 @@ PositionSet.prototype.add = function(pos) {
   for (var i = 0; i < this.positions_.length; ++i) {
     var cur = this.positions_[i];
     if (cur.row == pos.row && cur.col == pos.col) {
+      ++this.positions_[i].count;
       return;
     }
   }
+  pos.count = 1;
   this.positions_[this.positions_.length] = pos;
 }
 
@@ -548,7 +550,7 @@ function unHidePieces(toBeCleared) {
   // Unhide.
   for (var i = 0; i < toBeShown.length(); ++i) {
     var pos = toBeShown.get(i);
-    if (board[pos.row][pos.col] == 'H') {
+    if (board[pos.row][pos.col] == 'H' && pos.count == 1) {
       board[pos.row][pos.col] = 'h';
     } else {
       board[pos.row][pos.col] = parseInt(Math.random() * kSize + 1).toString();
