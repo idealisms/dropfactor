@@ -47,6 +47,10 @@ var hitch = function(obj, meth) {
   return function() { return meth.apply(obj, arguments); };
 }
 
+function isChrome() {
+  return navigator.userAgent.indexOf("Chrome") != -1;
+}
+
 function Point(x, y) {
   this.x = x;
   this.y = y;
@@ -286,34 +290,35 @@ function drawColumn(col) {
 function drawPiece(ctx, x, y, value) {
   if (value >= '1' && value <= '7') {
     // Draw colored circle.
-    /*
-    // This is code to draw the circle with a spherical look, but it
-    // doesn't seem to work on Android 1.6 or 2.1.
-    var radgrad = ctx.createRadialGradient(
-        kPieceSizePx / 4,
-        kPieceSizePx / 4,
-        kPieceSizePx / 8, // radius
-        kPieceSizePx / 2,
-        kPieceSizePx / 2,
-        kPieceSizePx / 2); // radius
-    radgrad = ctx.createRadialGradient(
-        x + kPieceSizePx / 3,
-        y + kPieceSizePx / 3,
-        kPieceSizePx / 8,
-        x + kPieceSizePx / 2,
-        y + kPieceSizePx / 2,
-        kPieceSizePx / 2);
-    radgrad.addColorStop(0, kLightColors[value]);
-    radgrad.addColorStop(0.9, kColors[value]);
-    radgrad.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = radgrad;
-    ctx.fillRect(x, y, kPieceSizePx, kPieceSizePx);
-    //*/
-    ctx.fillStyle = kColors[value];
-    ctx.beginPath();
-    ctx.arc(x + kPieceSizePx / 2, y + kPieceSizePx / 2,
-            kPieceSizePx / 2 - 1, 0, Math.PI * 2, true);
-    ctx.fill();
+    if (isChrome()) {
+      // This is code to draw the circle with a spherical look, but it
+      // doesn't seem to work on Android 1.6 or 2.1.
+      var radgrad = ctx.createRadialGradient(
+          kPieceSizePx / 4,
+          kPieceSizePx / 4,
+          kPieceSizePx / 8, // radius
+          kPieceSizePx / 2,
+          kPieceSizePx / 2,
+          kPieceSizePx / 2); // radius
+      radgrad = ctx.createRadialGradient(
+          x + kPieceSizePx / 3,
+          y + kPieceSizePx / 3,
+          kPieceSizePx / 8,
+          x + kPieceSizePx / 2,
+          y + kPieceSizePx / 2,
+          kPieceSizePx / 2);
+      radgrad.addColorStop(0, kLightColors[value]);
+      radgrad.addColorStop(0.9, kColors[value]);
+      radgrad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = radgrad;
+      ctx.fillRect(x, y, kPieceSizePx, kPieceSizePx);
+    } else {
+      ctx.fillStyle = kColors[value];
+      ctx.beginPath();
+      ctx.arc(x + kPieceSizePx / 2, y + kPieceSizePx / 2,
+              kPieceSizePx / 2 - 1, 0, Math.PI * 2, true);
+      ctx.fill();
+    }
 
     // Draw number.
     ctx.fillStyle = 'white';
